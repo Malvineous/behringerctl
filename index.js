@@ -219,6 +219,7 @@ debug('TODO: Preset data is cut off (preset title truncated at 10 chars)');
 			presetIndex: response.data[0],
 			presetLength: (response.data[1] << 7) | response.data[2],
 			presetRaw: response.data.slice(3),
+			title: Buffer.from(response.data.slice(353)).toString('ascii'),
 		};
 	}
 
