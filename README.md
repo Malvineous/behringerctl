@@ -45,6 +45,11 @@ You can now send commands to this device:
 Be aware that changing the MIDI channel also changes the device ID, which is
 always one integer less than the MIDI channel.
 
+The available commands are listed in the help:
+
+    behringerctl help
+    behringerctl help devices config
+
 ## Notes
 
 ### General
