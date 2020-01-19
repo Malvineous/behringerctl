@@ -10,8 +10,8 @@ wish to control Behringer devices in your own NodeJS programs.
 
 ### DEQ2496
 
-* Working: Reading presets, screenshots, MIDI channel changing
-* Incomplete: Writing presets, adjusting parameters (non SysEx), selecting
+* Working: Reading and writing presets, screenshots, MIDI channel changing
+* Incomplete: Adjusting parameters (non SysEx), selecting
   different menu pages on the LCD, firmware upload
 
 ### Others
@@ -104,4 +104,5 @@ See `cli/index.js` to get started.
   the screenshot are missing.  Most screens don't use the last row of pixels
   so it's not noticeable.  You can however see it on RTA page 3.
 * The `getSinglePreset` command seems to return incomplete data, as the preset
-  title is truncated to 10 characters.
+  title is truncated to 10 characters.  Writing a preset can set a title longer
+  than 10 characters however.

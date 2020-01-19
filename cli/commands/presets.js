@@ -76,6 +76,73 @@ class Operations
 		}
 	}
 
+	async import(params) {
+		if (params['index'] === undefined) {
+			throw new OperationsError('Missing --index.');
+		}
+		if (params['prefix'] === undefined) {
+			throw new OperationsError('Missing --prefix.');
+		}
+		const count = params['count'] || 1;
+		const start = parseInt(params['index']);
+		const end = start + count;
+
+		// Reduce the timeout a bit because the DEQ2496 doesn't respond if the
+		// preset is empty, even if there are valid presets later on.
+		this.behringer.defaultTimeout = 500;
+
+		for (let i = start; i < end; i++) {
+			const filename = `${params['prefix']}-${i}.bin`;
+			let data;
+			try {
+				data = fs.readFileSync(filename);
+			} catch (e) {
+				output(
+					output.pad(i, 2, chalk.whiteBright) + ':',
+					chalk.redBright('Skipping, unable to read'),
+					chalk.yellowBright(filename)
+				);
+				continue;
+			}
+
+			try {
+				this.behringer.writePreset(i, data);
+				// Wait for a bit to give it time to save.
+				await new Promise((resolve, reject) => setTimeout(() => resolve(), 500));
+			} catch (e) {
+				throw new OperationsError('writePreset() failed.');
+			}
+
+			let verify;
+			try {
+				verify = await this.behringer.readPreset(i);
+
+			} catch (e) {
+				output(
+					output.pad(i, 2, chalk.whiteBright) + ':',
+					chalk.blueBright('empty')
+				);
+				continue;
+			}
+
+			// Check the data
+			if (Buffer.compare(Buffer.from(verify.presetRaw), data)) {
+				output(
+					output.pad(i, 2, chalk.whiteBright) + ':',
+					output.pad(verify.title, 16, chalk.greenBright),
+					'<-',
+					chalk.yellowBright(filename)
+				);
+			} else {
+				output(
+					output.pad(i, 2, chalk.whiteBright) + ':',
+					chalk.redBright('Verify failed, data was not written correctly.')
+				);
+			}
+
+		}
+	}
+
 	static async exec(createInstance, args) {
 		let cmdDefinitions = [
 			{ name: 'name', defaultOption: true },
@@ -131,6 +198,26 @@ Operations.names = {
 				name: 'prefix',
 				type: String,
 				description: 'Filename prefix ("out" will save "out-0.bin")',
+			},
+		],
+	},
+	import: {
+		summary: 'Program the device with presets loaded from local files',
+		optionList: [
+			{
+				name: 'index',
+				type: Number,
+				description: 'First preset to replace (0..64)',
+			},
+			{
+				name: 'count',
+				type: Number,
+				description: 'Number of presets to write (default is 1)',
+			},
+			{
+				name: 'prefix',
+				type: String,
+				description: 'Filename prefix ("out" will load "out-0.bin")',
 			},
 		],
 	},

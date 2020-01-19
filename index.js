@@ -198,7 +198,7 @@ class Behringer
 	/**
 	 * @pre Device has been chosen by selectDevice().
 	 *
-	 * @return Object Device info, e.g. `{modelName: 'DEQ2496'}`.
+	 * @return Object Preset details.
 	 */
 	async readPreset(index)
 	{
@@ -212,15 +212,46 @@ class Behringer
 			commands.writeSinglePreset,
 		);
 
+		const length = (response.data[1] << 7) | response.data[2];
+
 debug('TODO: Preset data is cut off (preset title truncated at 10 chars)');
 		return {
 			modelId: response.modelId,
 			deviceId: response.deviceId,
 			presetIndex: response.data[0],
-			presetLength: (response.data[1] << 7) | response.data[2],
-			presetRaw: response.data.slice(3),
-			title: Buffer.from(response.data.slice(353)).toString('ascii'),
+			presetLength: length,
+			presetContent: response.data.slice(3, length),
+			// Title is whatever is following on from the data
+			title: Buffer.from(response.data.slice(length + 3)).toString('ascii'),
+			// Omit the index but keep the length field
+			presetRaw: response.data.slice(1),
 		};
+	}
+
+	/// Read a preset.
+	/**
+	 * @pre Device has been chosen by selectDevice().
+	 *
+	 * @param Buffer content
+	 *   Raw data to write.  Must not contain any bytes >= 0x80.
+	 *
+	 * @return None.
+	 */
+	async writePreset(index, content)
+	{
+		this.sanityCheck();
+
+		const data = [
+			index,
+			...content,
+		];
+
+		this.sendMessage(
+			this.modelId,
+			this.deviceId,
+			commands.writeSinglePreset,
+			data,
+		);
 	}
 
 	/// Retrieve a copy of the device's LCD display.
