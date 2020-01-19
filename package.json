@@ -1,0 +1,32 @@
+{
+  "name": "behringerctl",
+  "version": "1.0.0",
+  "description": "Control supported Behringer devices over MIDI",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "deq2496"
+  ],
+  "author": "Adam Nielsen <malvineous@shikadi.net>",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "chalk": "^3.0.0",
+    "command-line-args": "^5.1.1",
+    "command-line-usage": "^6.1.0",
+    "debug": "^4.1.1",
+    "glob": "^7.1.6",
+    "midi": "^1.0.0",
+    "path": "^0.12.7"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Malvineous/behringerctl.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Malvineous/behringerctl/issues"
+  },
+  "homepage": "https://github.com/Malvineous/behringerctl#readme"
+}
