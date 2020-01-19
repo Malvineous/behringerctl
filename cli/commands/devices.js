@@ -123,7 +123,7 @@ Operations.names = {
 				name: 'midi-channel',
 				type: Number,
 				description: 'Set the device to listen on a different MIDI channel',
-			}
+			},
 		],
 	},
 };
