@@ -73,6 +73,19 @@ The available commands are listed in the help:
     behringerctl help
     behringerctl help devices config
 
+### Examples
+
+Export all the presets from one DEQ2496 and import them into another (or back
+into the same unit after a factory reset):
+
+    behringerctl --device-id 0 presets export --index 0 --count 65 --prefix preset
+    behringerctl --device-id 1 presets import --index 0 --count 65 --prefix preset
+
+Note that at the time of writing the 16-character preset titles will be
+truncated to 10 characters during the export due to a firmware bug.  You can
+edit the exported files in a hex editor and add back the missing characters to
+the end of the file, which will then reimport with the full title.
+
 ## Use as a module
 
 See `cli/index.js` to get started.
