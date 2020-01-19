@@ -1,3 +1,26 @@
+## Description
+
+This is a command-line utility that can send commands to supported Behringer
+devices over a MIDI interface.
+
+It can also be used as a module (for which the CLI is an example) should you
+wish to control Behringer devices in your own NodeJS programs.
+
+## Supported devices
+
+### DEQ2496
+
+* Working: Reading presets, screenshots, MIDI channel changing
+* Incomplete: Writing presets, adjusting parameters (non SysEx), selecting
+  different menu pages on the LCD, firmware upload
+
+### Others
+
+Other Behringer devices should be able to be identified, however none of their
+functions will work unless they are shared with a supported device.
+Contributions are welcome if anyone wishes to add support for additional
+devices!
+
 ## Installation
 
     npm install -g behringerctl
@@ -49,6 +72,10 @@ The available commands are listed in the help:
 
     behringerctl help
     behringerctl help devices config
+
+## Use as a module
+
+See `cli/index.js` to get started.
 
 ## Notes
 
