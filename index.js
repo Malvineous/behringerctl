@@ -25,20 +25,6 @@ const commands = {
 	ANY: 0xFF,
 };
 
-/*const commandNames = {
-	0x01: 'identify',
-	0x02: 'identifyResponse',
-	0x20: 'writeSinglePreset',
-	0x21: 'writeModulePresets',
-	0x22: 'writeSingleValue',
-	0x24: 'setMIDIChannel',
-	0x34: 'writeFlash',
-	0x35: 'writeFlashResponse',
-	0x60: 'getSinglePreset',
-	0x61: 'getModulePreset',
-	0x76: 'getScreenshot',
-};*/
-
 function getCommandName(c)
 {
 	const commandId = parseInt(c);
@@ -97,8 +83,6 @@ class Behringer
 		const companyId = (message[1] << 16) | (message[2] << 8) | message[3];
 		if (companyId !== SYSEX_COMPANY_ID_BEHRINGER) {
 			debug(`Ignoring message for unsupported company: ${companyId}`);
-		debug(response.data);
-		debug(Buffer.from(response.data).toString('ascii'));
 			return;
 		}
 
