@@ -33,11 +33,14 @@ You can now send commands to this device:
     # Get same model name returned by `devices list`
     behringerctl --device-id 0 devices identify
 
-    # Set MIDI channel to 4
-    behringerctl --device-id 0 devices config --midi-channel 4
-
     # Dump screen contents if you have a large enough terminal window
     behringerctl --device-id 0 screenshot show
+
+    # Set MIDI channel from 1 (device ID 0) to 4 (device ID 3)
+    behringerctl --device-id 0 devices config --midi-channel 4
+
+    # Set MIDI channel back to 1 (device ID 0)
+    behringerctl --device-id 3 devices config --midi-channel 1
 
 Be aware that changing the MIDI channel also changes the device ID, which is
 always one integer less than the MIDI channel.
@@ -47,8 +50,8 @@ always one integer less than the MIDI channel.
 ### General
 
 * If you change the MIDI channel with `setMIDIChannel`, you will also be
-  changing the `deviceId`, so you'll need to use the new value for subsequent
-  commands sent to the same device.
+  changing the `deviceId`, so you'll need to use the new value (minus 1) for
+  subsequent commands sent to the same device.
 
 ### DEQ2496
 
