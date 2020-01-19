@@ -110,8 +110,7 @@ class Behringer
 		};
 
 		debug(`${getModelName(response.modelId)}@${response.deviceId}: ${getCommandName(response.command)}`);
-		debug(response.data);
-		debug(Buffer.from(response.data).toString('ascii'));
+		debug.extend('trace')(response.data);
 
 		this.callListeners(response);
 	}
@@ -369,6 +368,7 @@ debug('TODO: Preset data is cut off (preset title truncated at 10 chars)');
 	 */
 	sendMessage(modelId, deviceId, command, data)
 	{
+		const debug = g_debug.extend('send');
 		let content = [
 			0xF0, // SysEx start
 			(SYSEX_COMPANY_ID_BEHRINGER >> 16) & 0x7F,
@@ -380,7 +380,8 @@ debug('TODO: Preset data is cut off (preset title truncated at 10 chars)');
 			...data,
 			0xF7,
 		];
-		debug.extend('send')(`${getModelName(modelId)}@${deviceId}: ${getCommandName(command)}`);
+		debug(`${getModelName(modelId)}@${deviceId}: ${getCommandName(command)}`);
+		debug.extend('trace')(content);
 		this.midiOut.write(content);
 	}
 
