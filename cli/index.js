@@ -52,6 +52,7 @@ async function main()
 		{ name: 'model-id', type: Number },
 		{ name: 'device-id', type: Number },
 		{ name: 'all-devices', type: Boolean },
+		{ name: 'debug-monitor', type: Boolean },
 		{ name: 'name', defaultOption: true },
 	];
 	let argv = process.argv;
@@ -112,6 +113,10 @@ async function main()
 					{
 						name: '--all-devices',
 						summary: 'Instead of --device-id, send the command to every listening device',
+					},
+					{
+						name: '--debug-monitor',
+						summary: 'Wait at exit, monitoring for any further messages (set DEBUG env var to "*")',
 					},
 				],
 			});
@@ -239,7 +244,9 @@ async function main()
 		// waiting to receive more MIDI messages.
 		cleanup = () => {
 			midiOutput.closePort();
-			midiInput.closePort();
+			if (!cmd['debug-monitor']) {
+				midiInput.closePort();
+			}
 		};
 		return b;
 	}
