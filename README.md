@@ -100,22 +100,4 @@ See `cli/index.js` to get started.
 
 ### DEQ2496
 
-* Holding the COMPARE and MEMORY buttons while powering on the device will
-  perform a factory reset.
-* To access the bootloader, hold the UTILITY button while powering on the
-  device.  (Power cycle it again to return to normal).  In the bootloader, the
-  device responds over MIDI but identifies itself with the model
-  `DEQ2496V2 BOOTLOAD` rather than the usual `DEQ2496`.
-
-#### Bugs
-
-##### Firmware 2.5
-
-* You can use the `setMIDIChannel` command to set a channel up to 128, even
-  though channels above 16 are invalid.
-* The `getScreenshot` command returns 7 bytes short, so the last 49 pixels of
-  the screenshot are missing.  Most screens don't use the last row of pixels
-  so it's not noticeable.  You can however see it on RTA page 3.
-* The `getSinglePreset` command seems to return incomplete data, as the preset
-  title is truncated to 10 characters.  Writing a preset can set a title longer
-  than 10 characters however.
+See [doc/behringer-deq2496.md](doc/behringer-deq2496.md).
