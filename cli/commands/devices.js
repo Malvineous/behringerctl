@@ -61,7 +61,7 @@ class Operations
 		if (params['midi-channel'] !== undefined) {
 			const channel = parseInt(params['midi-channel']) - 1;
 			if (channel < 0) {
-				throw new OperationsError('Channel cannot be less than 1');
+				throw new OperationsError('Channel cannot be less than 1.');
 			}
 			this.behringer.setMIDIChannel(channel);
 			output(
@@ -74,6 +74,14 @@ class Operations
 		}
 	}
 
+	async message(params) {
+		//await this.behringer.readMemory();
+		if (params['text'] === undefined) {
+			throw new OperationsError('Must specify --text.');
+		}
+		await this.behringer.setLCDMessage(params['text']);
+	}
+
 	static async exec(createInstance, args) {
 		let cmdDefinitions = [
 			{ name: 'name', defaultOption: true },
@@ -81,7 +89,7 @@ class Operations
 		const cmd = commandLineArgs(cmdDefinitions, { argv: args, stopAtFirstUnknown: true });
 
 		if (!cmd.name) {
-			throw new OperationsError(`subcommand required`);
+			throw new OperationsError(`subcommand required.`);
 		}
 
 		let proc = new Operations();
@@ -123,6 +131,16 @@ Operations.names = {
 				name: 'midi-channel',
 				type: Number,
 				description: 'Set the device to listen on a different MIDI channel',
+			},
+		],
+	},
+	message: {
+		summary: 'Write a message on the device\'s display',
+		optionList: [
+			{
+				name: 'text',
+				type: String,
+				description: 'Text to show',
 			},
 		],
 	},

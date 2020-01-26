@@ -98,7 +98,10 @@ encryption are again used.  The process happens as follows:
 4. The block structure is now a UINT16BE block number, then a UINT8 crc,
    followed by 256 bytes of data.
 
-5. The CRC byte is checked.  The algorithm is currently unknown.
+5. The checksum byte is checked.  The Behringer docs call this a CRC but in
+   reality it's a homebrew checksum.  See checksumTZ.js for how to calculate it.
+   Contrary to the Behringer docs, the block number is not included in the
+   checksum and only the 256 data bytes are used.
 
 6. The devices stores the 256 bytes into memory (not flash) and does not
    respond yet.

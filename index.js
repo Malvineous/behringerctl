@@ -1,6 +1,9 @@
 const debug = require('debug')('behringerctl:behringer');
 const g_debug = debug;
 
+const sevenEightCoder = require('./sevenEightCoder.js');
+const checksumTZ = require('./checksumTZ.js');
+
 const DEVICE_ID_ANY = 0x7F;
 const SYSEX_COMPANY_ID_BEHRINGER = 0x002032;
 
@@ -330,21 +333,60 @@ debug('TODO: Preset data is cut off (preset title truncated at 10 chars)');
 		);
 	}
 
-// TESTING
-	async readMemory()
+	async setLCDMessage(text)
 	{
 		this.sanityCheck();
 
-		for (let i = 0; i < 12; i++) {
-			if (i == 0x76) continue;
-			this.sendMessage(
-				this.modelId,
-				this.deviceId,
-				i,
-				[0, 0, 0, 0, 0],
-			);
-			await new Promise((resolve, reject) => setTimeout(() => resolve(), 200));
+		const textBytes = text.split('').map(c => c.charCodeAt(0));
+		const dataBlock = [
+			...textBytes,
+			...new Array(256 - textBytes.length).fill(0),
+		];
+
+		return await this.writeBlock(0xFF00, dataBlock);
+	}
+
+	packBlock(offset, content)
+	{
+		return [
+			offset >> 8,
+			offset & 0xFF,
+			checksumTZ(content),
+			...content,
+		];
+	}
+
+	encodeBlock(offset, content)
+	{
+		if (!content || (content.length != 256)) {
+			throw new Error('Can only write blocks of 256 bytes');
 		}
+
+		let packedData = this.packBlock(offset, content);
+
+		// Encrypt the data with a simple XOR cipher.
+		const key = "TZ'04";
+		for (let i = 0; i < packedData.length; i++) {
+			packedData[i] ^= key[i % key.length].charCodeAt(0);
+		}
+
+		// Encode the 8-bit data into MIDI SysEx-safe 7-bit bytes.
+		const encodedData = sevenEightCoder.encode(packedData);
+
+		return encodedData;
+	}
+
+	async writeBlock(offset, content)
+	{
+		const debug = g_debug.extend('writeBlock');
+
+		this.sendMessage(
+			this.modelId,
+			this.deviceId,
+			commands.writeFlash,
+			this.encodeBlock(offset, content),
+		);
+
 		return;
 	}
 
@@ -398,6 +440,7 @@ debug('TODO: Preset data is cut off (preset title truncated at 10 chars)');
 		];
 		debug(`${getModelName(modelId)}@${deviceId}: ${getCommandName(command)}`);
 		debug.extend('trace')(content);
+
 		this.midiOut.write(content);
 	}
 
