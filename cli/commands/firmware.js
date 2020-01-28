@@ -23,20 +23,9 @@ const debug = require('debug')('behringerctl:firmware');
 const fs = require('fs');
 
 const sevenEightCoder = require('../../algo/sevenEightCoder.js');
+const xor = require('../../algo/xor.js');
 const { OperationsError } = require('../error.js');
 const output = require('../output.js');
-
-function xor(key, dataIn)
-{
-	let data = Buffer.from(dataIn);
-	if (typeof(key) === 'string') {
-		key = key.split('').map(c => c.charCodeAt(0));
-	}
-	for (let i = 0; i < data.length; i++) {
-		data[i] ^= key[i % key.length];
-	}
-	return data;
-}
 
 function decodeSysEx(block)
 {
