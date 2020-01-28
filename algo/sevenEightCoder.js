@@ -1,4 +1,23 @@
 /**
+ * Implementation of Behringer's 7/8 coder, for passing 8-bit data via MIDI.
+ *
+ * Copyright (C) 2020 Adam Nielsen <malvineous@shikadi.net>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
  * Encode and decode data stored in Behringer 7/8 coding.
  *
  * This works in groups of seven bytes, removing the high bit from all seven
@@ -7,6 +26,8 @@
  * It is used to encode 8-bit binary firmware data such that it can be
  * transmitted as MIDI System Exclusive (SysEx) events, which require that none
  * of the SysEx data bytes have the high bit set.
+ *
+ * Algorithm reverse engineered by Adam Nielsen <malvineous@shikadi.net>
  */
 class SevenEightCoder
 {

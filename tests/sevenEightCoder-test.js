@@ -1,6 +1,6 @@
 const assert = require('assert');
 
-const sevenEightCoder = require('../sevenEightCoder.js');
+const sevenEightCoder = require('../algo/sevenEightCoder.js');
 
 describe('encoding 8-bit data in 7 bits', () => {
 
