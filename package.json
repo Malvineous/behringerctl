@@ -4,7 +4,7 @@
   "description": "Control supported Behringer devices over MIDI",
   "main": "index.js",
   "scripts": {
-    "test": "mocha tests"
+    "test": "mocha test"
   },
   "bin": {
     "behringerctl": "./bin/behringerctl.js"
