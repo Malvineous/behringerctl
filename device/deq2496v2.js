@@ -165,7 +165,7 @@ class DEQ2496v2
 			const imgContent = util.blocksToImage(blocks, 0x7E, 0x80);
 
 			info.images.push({
-				title: 'Hardware data',
+				title: 'Boot screen',
 				data: imgContent,
 				offset: 0x7E000,
 				capacity: 0x80000 - 0x7E000,

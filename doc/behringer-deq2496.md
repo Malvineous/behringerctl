@@ -13,8 +13,12 @@
 
 ## Additional functions
 
-* Holding the COMPARE and MEMORY buttons while powering on the device will
-  perform a factory reset. (Manual says holding MEMORY is enough)
+* Holding the MEMORY button while powering on the unit will reset most of the
+  settings back to the default, but it will keep the presets untouched.
+
+* Holding the COMPARE and MEMORY buttons while powering on the device will ask
+  whether you want to wipe all the presets.  You must press a button to confirm
+  before the presets are wiped.
 
 * Holding the UTILITY button while powering on the device will enter the
   bootloader (see below).  Power cycle it again to return to normal operation.
@@ -54,7 +58,7 @@ This differs from the official SysEx doc.  Perhaps the doc is for hardware V1.
 * 0x04000 - 0x73FFF (448 kB): Application, only 0x4000-0x5B000 (348 kB) is used
 * 0x74000 - 0x7BFFF (32 kB): User presets
 * 0x7C000 - 0x7DFFF (8 kB): Scratch space (contains old presets)
-* 0x7E000 - 0x7FFFF (8 kB): Hardware config data (does not differ between units)
+* 0x7E000 - 0x7FFFF (8 kB): Boot logo (320×80 1bpp bitmap, 3200 bytes)
 
 The application segment is the only part reflashed by the official firmware
 releases, which means if the process fails, the bootloader will be left intact
@@ -174,3 +178,12 @@ the form `0="example", 10="test"` which means `example` is written to the LCD
 screen before any firmware blocks are sent, and `test` is written to the screen
 after the 10th block has been sent.  Here, a block is defined as a single SysEx
 message writing a 256-byte block of data.
+
+## MIDI interface
+
+### SysEx
+
+The official Behringer document is mostly correct, although it's for the
+DEQ2496v1 rather than v2.
+
+SysEx event 0x62 is undocumented, and its purpose is currently unknown.
