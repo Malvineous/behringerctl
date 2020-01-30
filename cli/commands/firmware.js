@@ -26,6 +26,10 @@ const Behringer = require('../../index.js');
 const { OperationsError } = require('../error.js');
 const output = require('../output.js');
 
+const midiData = require('../../midiData.js');
+const sevenEightCoder = require('../../algo/sevenEightCoder.js');
+const xor = require('../../algo/xor.js');
+
 class Operations
 {
 	constructor() {
@@ -137,6 +141,42 @@ class Operations
 		}
 	}
 
+	syx2bin(params) {
+		if (!params['read']) {
+			throw new OperationsError('Missing filename to --read.');
+		}
+		if (!params['write']) {
+			throw new OperationsError('Missing filename to --write.');
+		}
+		const binMIDI = fs.readFileSync(params['read']);
+
+		let chunks = [];
+		midiData.processMIDI(binMIDI, event => {
+			const eventInfo = midiData.parseSysEx(event);
+
+			chunks.push(Buffer.from([eventInfo.command]));
+
+			let data8bit = sevenEightCoder.decode(eventInfo.binData);
+			debug(`SysEx command: ${eventInfo.command.toString(16)}, `
+				+ `length: ${eventInfo.binData.length}, `
+				+ `8-bit-length: ${data8bit.length}`);
+
+			if (params['xor']) {
+				data8bit = xor(params['xor'], data8bit);
+			}
+			chunks.push(Buffer.from(data8bit));
+		});
+
+		const dataOut = Buffer.concat(chunks);
+		const writeFilename = params['write'];
+		fs.writeFileSync(writeFilename, dataOut);
+
+		output(
+			'Extracted raw SysEx data to',
+			chalk.greenBright(writeFilename),
+		);
+	}
+
 	static async exec(createInstance, args) {
 		let cmdDefinitions = [
 			{ name: 'name', defaultOption: true },
@@ -193,6 +233,27 @@ Operations.names = {
 				name: 'debug-dump',
 				type: String,
 				description: 'Dump SysEx decoded data for identifying new firmware images',
+			},
+		],
+	},
+	syx2bin: {
+		summary: 'Convert SysEx events in *.syx raw MIDI data into 8-bit binary, '
+			+ 'for examining unsupported firmware images',
+		optionList: [
+			{
+				name: 'read',
+				type: String,
+				description: '*.bin firmware file to read',
+			},
+			{
+				name: 'write',
+				type: String,
+				description: 'Filename to create (*.syx)',
+			},
+			{
+				name: 'xor',
+				type: String,
+				description: 'Optional XOR key to apply over content',
 			},
 		],
 	},
