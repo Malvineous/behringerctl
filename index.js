@@ -69,7 +69,7 @@ class Behringer
 			data: message.slice(7, message.length - 8),
 		};
 
-		debug(`${getModelName(response.modelId)}@${response.deviceId}: ${getCommandName(response.command)}`);
+		debug(`${util.getModelName(response.modelId)}@${response.deviceId}: ${util.getCommandName(response.command)}`);
 		debug.extend('trace')(response.data);
 
 		this.callListeners(response);
@@ -89,7 +89,7 @@ class Behringer
 	 *
 	 * @return Array of discovered devices, e.g. `[ {modelId: 18, deviceId: 0, modelName: 'DEQ2496'} ]`.
 	 */
-	find(waitTime = 5000, modelId = models.ANY, deviceId = DEVICE_ID_ANY)
+	find(waitTime = 5000, modelId = util.models.ANY, deviceId = DEVICE_ID_ANY)
 	{
 		return new Promise((resolve, reject) => {
 			let deviceList = [
@@ -98,7 +98,7 @@ class Behringer
 			const listenerId = this.addListener(
 				modelId,
 				deviceId,
-				commands.identifyResponse,
+				util.commands.identifyResponse,
 				msg => {
 					deviceList.push({
 						modelId: msg.modelId,
@@ -107,7 +107,7 @@ class Behringer
 					});
 				}
 			);
-			this.sendMessage(modelId, deviceId, commands.identify, []);
+			this.sendMessage(modelId, deviceId, util.commands.identify, []);
 
 			const timerHandle = setTimeout(() => {
 				this.removeListener(listenerId);
@@ -127,7 +127,7 @@ class Behringer
 	 *
 	 * @return None.
 	 */
-	selectDevice(modelId = models.ANY, deviceId)
+	selectDevice(modelId = util.models.ANY, deviceId)
 	{
 		debug(`Selected model ${modelId}, device ${deviceId}`);
 		this.modelId = modelId;
@@ -158,9 +158,9 @@ class Behringer
 		const response = await this.sendMessageAsync(
 			this.modelId,
 			this.deviceId,
-			commands.identify,
+			util.commands.identify,
 			[],
-			commands.identifyResponse,
+			util.commands.identifyResponse,
 		);
 
 		return {
@@ -183,9 +183,9 @@ class Behringer
 		const response = await this.sendMessageAsync(
 			this.modelId,
 			this.deviceId,
-			commands.readSinglePreset,
+			util.commands.readSinglePreset,
 			[index],
-			commands.writeSinglePreset,
+			util.commands.writeSinglePreset,
 		);
 
 		const length = (response.data[1] << 7) | response.data[2];
@@ -225,7 +225,7 @@ debug('TODO: Preset data is cut off (preset title truncated at 10 chars)');
 		this.sendMessage(
 			this.modelId,
 			this.deviceId,
-			commands.writeSinglePreset,
+			util.commands.writeSinglePreset,
 			data,
 		);
 	}
@@ -244,14 +244,14 @@ debug('TODO: Preset data is cut off (preset title truncated at 10 chars)');
 		const response = await this.sendMessageAsync(
 			this.modelId,
 			this.deviceId,
-			commands.getScreenshot,
+			util.commands.getScreenshot,
 			[],
-			commands.screenshotResponse,
+			util.commands.screenshotResponse,
 		);
 
 		let width, height, pixels = [], row = [];
 		switch (response.modelId) {
-			case models.deq2496:
+			case util.models.deq2496:
 				width = 46 * 7;
 				height = 80;
 				for (let d of response.data) {
@@ -356,7 +356,7 @@ debug('TODO: Preset data is cut off (preset title truncated at 10 chars)');
 		this.sendMessage(
 			this.modelId,
 			this.deviceId,
-			commands.writeFlash,
+			util.commands.writeFlash,
 			this.encodeBlock(offset, content),
 		);
 
@@ -411,7 +411,7 @@ debug('TODO: Preset data is cut off (preset title truncated at 10 chars)');
 			...data,
 			0xF7,
 		];
-		debug(`${getModelName(modelId)}@${deviceId}: ${getCommandName(command)}`);
+		debug(`${util.getModelName(modelId)}@${deviceId}: ${util.getCommandName(command)}`);
 		debug.extend('trace')(content);
 
 		this.midiOut.write(content);
@@ -426,11 +426,11 @@ debug('TODO: Preset data is cut off (preset title truncated at 10 chars)');
 	 *   Device ID of the device to send to, returned by find().
 	 *
 	 * @param Number command
-	 *   Command to send, see `commands` global variable.
+	 *   Command to send, see `util.commands` list.
 	 *
 	 * @param Number responseCommand
 	 *   Only resolve the returned promise when this command is received from
-	 *   the device.  Can be `commands.ANY` to resolve on the next command
+	 *   the device.  Can be `util.commands.ANY` to resolve on the next command
 	 *   received.
 	 *
 	 * @param Number timeout
@@ -466,11 +466,11 @@ debug('TODO: Preset data is cut off (preset title truncated at 10 chars)');
 					&& (l.deviceId !== DEVICE_ID_ANY)
 					&& (message.deviceId !== l.deviceId)
 				) || (
-					(message.modelId !== models.ANY)
-					&& (l.modelId !== models.ANY)
+					(message.modelId !== util.models.ANY)
+					&& (l.modelId !== util.models.ANY)
 					&& (message.modelId !== l.modelId)
 				) || (
-					(l.command !== commands.ANY)
+					(l.command !== util.commands.ANY)
 					&& (message.command !== l.command)
 				)
 			) {
