@@ -266,6 +266,7 @@ async function main()
 				process.exit(2);
 				break;
 			default:
+				if (debug.enabled) throw e;
 				console.error(chalk.redBright('Unhandled error:'), e.message);
 				process.exit(2);
 				break;
