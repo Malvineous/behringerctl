@@ -26,7 +26,6 @@ const Behringer = require('../../index.js');
 const { OperationsError } = require('../error.js');
 const output = require('../output.js');
 
-
 class Operations
 {
 	constructor() {
@@ -43,6 +42,19 @@ class Operations
 		const dataIn = fs.readFileSync(params['read']);
 
 		const decoded = Behringer.firmware.decode(dataIn);
+
+		const dumpFilename = params['debug-dump'];
+		if (dumpFilename) {
+			const rawData = Behringer.util.blocksToImage(decoded.blocks, 0, 0xFFFF, false);
+			fs.writeFileSync(dumpFilename, rawData);
+
+			output(
+				'Raw dump to',
+				chalk.greenBright(dumpFilename),
+			);
+			return;
+		}
+
 		let info = Behringer.firmware.examine(decoded.blocks);
 
 		if (!info) {
@@ -160,6 +172,11 @@ Operations.names = {
 				name: 'write',
 				type: String,
 				description: 'Filename to save --extract-index to',
+			},
+			{
+				name: 'debug-dump',
+				type: String,
+				description: 'Dump SysEx decoded data for identifying new firmware images',
 			},
 		],
 	},

@@ -483,5 +483,6 @@ debug('TODO: Preset data is cut off (preset title truncated at 10 chars)');
 };
 
 Behringer.firmware = require('./firmware.js');
+Behringer.util = util;
 
 module.exports = Behringer;
