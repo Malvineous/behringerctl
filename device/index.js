@@ -1,3 +1,3 @@
 module.exports = {
-	DEQ2496: require('./deq2496.js'),
+	DEQ2496v2: require('./deq2496v2.js'),
 };

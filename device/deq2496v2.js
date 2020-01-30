@@ -1,5 +1,5 @@
 /**
- * DEQ2496 specific code.
+ * DEQ2496v2 specific code.
  *
  * Copyright (C) 2020 Adam Nielsen <malvineous@shikadi.net>
  *
@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const debug = require('debug')('behringerctl:device:deq2496');
+const debug = require('debug')('behringerctl:device:deq2496v2');
 
 const util = require('../util.js');
 const xor = require('../algo/xor.js');
@@ -28,17 +28,17 @@ const xor = require('../algo/xor.js');
 // this key.
 const KEY_FW_APP = "- ORIGINAL BEHRINGER CODE - COPYRIGHT 2004 - BGER/TZ - \u0000";
 
-class DEQ2496
+class DEQ2496v2
 {
 	static identifyFirmware(blocks)
 	{
 		if (blocks[2]) {
-			const sigDEQ2496 = blocks[2].slice(0xC94, 0xC94 + 25).toString('utf8');
-			if (sigDEQ2496 === 'DEQ2496V2 BOOTLOADER V2.2') return true;
+			const sig = blocks[2].slice(0xC94, 0xC94 + 25).toString('utf8');
+			if (sig === 'DEQ2496V2 BOOTLOADER V2.2') return true;
 
 		} else if (blocks[4]) {
-			const sigDEQ2496 = blocks[4].slice(0x01C, 0x01C + 4).toString('utf8');
-			if (sigDEQ2496 === 'COPY') return true;
+			const sig = blocks[4].slice(0x01C, 0x01C + 4).toString('utf8');
+			if (sig === 'COPY') return true;
 		}
 
 		return false;
@@ -46,7 +46,7 @@ class DEQ2496
 
 	static examineFirmware(blocks) {
 		let info = {
-			id: 'DEQ2496',
+			id: 'DEQ2496v2',
 			detail: [],
 			images: [],
 		};
@@ -176,4 +176,4 @@ class DEQ2496
 	}
 };
 
-module.exports = DEQ2496;
+module.exports = DEQ2496v2;
