@@ -18,15 +18,77 @@
  */
 
 const debug = require('debug')('behringerctl:midiData');
+const g_debug = debug;
 
+const checksumTZ = require('./algo/checksumTZ.js');
 const midiFirmwareCoder = require('./algo/midiFirmwareCoder.js');
 const sevenEightCoder = require('./algo/sevenEightCoder.js');
 const xor = require('./algo/xor.js');
 
-const KEY_FW_BLOCK = "TZ'04";
+// DEQ2496 v1.x
+const KEY_FW_BLOCK_1 = "TZ'02";
+
+// DEQ2496 v2.x
+const KEY_FW_BLOCK_2 = "TZ'04";
 
 class MIDIData
 {
+	/// Figure out what kind of format the SysEx data is in.
+	static identifySysEx(block)
+	{
+		const debug = g_debug.extend('identifySysEx');
+
+		const companyId = (block[1] << 16) | (block[2] << 8) | block[3];
+		if (companyId != 0x002032) {
+			debug(`Invalid companyId 0x${companyId.toString(16)}, ignoring`);
+			return;
+		}
+		const deviceId = block[4];
+		const modelId = block[5];
+		const command = block[6];
+
+		if (command === 0x34) {
+			// Remove header and final 0xF7 byte.
+			let data7bit = block.slice(7, block.length - 1);
+
+			// Remove the 7/8 coding, restoring the full 8-bit bytes.
+			let data = sevenEightCoder.decode(data7bit);
+
+			// Decrypt the data with a simple XOR cipher.
+			let testData = xor(KEY_FW_BLOCK_2, data);
+			//const blockNumber = (testData[0] << 8) | testData[1];
+			let crc = testData[2];
+			let expectedCRC = checksumTZ(testData.slice(3));
+
+			debug('DEQ2496v2: CRC is 0x' + crc.toString(16) + ', expecting ' + expectedCRC.toString(16));
+			if (crc === expectedCRC) {
+				debug('SysEx CRC matches DEQ2496v2');
+				return {
+					id: 'DEQ2496v2',
+					midiKey: KEY_FW_BLOCK_2,
+				};
+			}
+
+			testData = xor(KEY_FW_BLOCK_1, data);
+			crc = testData[2];
+			expectedCRC = checksumTZ(testData.slice(3));
+
+			debug('DEQ2496v1: CRC is 0x' + crc.toString(16) + ', expecting ' + expectedCRC.toString(16));
+			//if (crc === expectedCRC) {
+			//	debug('SysEx CRC matches DEQ2496v1');
+			if (true) {
+				debug('Assuming DEQ2496v1 due to unknown CRC');
+				return {
+					id: 'DEQ2496v1',
+					midiKey: KEY_FW_BLOCK_1,
+				};
+			}
+
+			return null;
+		}
+		return null;
+	}
+
 	/// Decode the data portion of a SysEx block and return 8-bit data.
 	/**
 	 * This decodes the 7-bit MIDI data into 8-bit data, verifies that the
@@ -34,8 +96,10 @@ class MIDIData
 	 * data for that block along with additional info from the header, such as
 	 * which flash memory address the block is for.
 	 */
-	static decodeSysEx(block)
+	static decodeSysEx(identity, block)
 	{
+		const debugTrace = debug.extend('trace');
+
 		const companyId = (block[1] << 16) | (block[2] << 8) | block[3];
 		if (companyId != 0x002032) {
 			debug(`Invalid companyId 0x${companyId.toString(16)}, ignoring`);
@@ -52,11 +116,15 @@ class MIDIData
 			let data = sevenEightCoder.decode(data7bit);
 
 			// Decrypt the data with a simple XOR cipher.
-			data = xor(KEY_FW_BLOCK, data);
+			data = xor(identity.midiKey, data);
 
 			const blockNumber = (data[0] << 8) | data[1];
 			const crc = data[2];
-			debug(`Block 0x${blockNumber.toString(16)}, CRC 0x${crc.toString(16)}`);
+			debugTrace(
+				`Block 0x${blockNumber.toString(16)},`,
+				`CRC 0x${crc.toString(16)},`,
+				`targetModel: 0x${modelId.toString(16)}`
+			);
 
 			return {
 				targetModel: modelId,
@@ -93,6 +161,7 @@ class MIDIData
 		let targetModel;
 		let fwBlocks = [];
 
+		let identity = null;
 		let subBlockIndex = 0;
 		let pos = 0;
 		while (pos < dataIn.length) {
@@ -106,7 +175,16 @@ class MIDIData
 					if (dataIn[end] === 0xF7) {
 						end++;
 						const event = dataIn.slice(pos, end);
-						const data = this.decodeSysEx(event);
+
+						/// Work out what format the data is in (e.g. which key to decrypt)
+						if (!identity) {
+							identity = this.identifySysEx(event);
+							if (!identity) {
+								throw new Error('Unable to identify target device from SysEx data');
+							}
+						}
+
+						const data = this.decodeSysEx(identity, event);
 						if (data) {
 							targetModel = data.targetModel;
 							if (data.blockNumber < 0xFF00) { // skip LCD messages
