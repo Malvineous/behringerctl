@@ -26,41 +26,107 @@ const util = require('./util.js');
 /// Accessed through `index.js` as `Behringer.firmware`
 class BehringerFirmware
 {
+	/// Work out which device the SysEx data is targeted at.
+	/**
+	 * This may match multiple device models, e.g. model 0x12 is used for both
+	 * DEQ2496v1 and DEQ2496v2.
+	 *
+	 * Return Array of zero or more Device classes.
+	 */
+	static identifyMIDITarget(binMIDI)
+	{
+		if (!midiData.isSysEx(binMIDI)) {
+			throw new Error('Supplied data is not in MIDI format.');
+		}
+
+		// Just get the first event
+		const sysExInfo = midiData.parseSysEx(binMIDI);
+		if (!sysExInfo) {
+			throw new Error('Supplied MIDI data is not in a known Behringer format.');
+		}
+
+		debug(`Device model is 0x${sysExInfo.modelId.toString(16)}, looking for a match`);
+		let matchedDevices = [];
+		for (let dev in device) {
+			if (sysExInfo.modelId === device[dev].modelId) {
+				debug(`Matched model ${dev}`);
+				matchedDevices.push(device[dev]);
+			}
+		}
+
+		return matchedDevices;
+	}
+
 	/**
 	 * Read a firmware file and return information about it.
 	 *
 	 * @param Buffer dataIn
 	 *   Input data buffer, e.g. returned from fs.readFileSync().
 	 *
+	 * @param string device
+	 *   Device type.  Optional if the data is MIDI SysEx as the device can be
+	 *   guessed from the MIDI data.
+	 *
 	 * @return Array containing information about the firmware.
 	 */
-	static decode(dataIn)
+	static decode(dataIn, deviceName = null)
 	{
-		let isSysex = false;
-		if ((dataIn[0] === 0xF0) && (dataIn[dataIn.length - 1] == 0xF7)) {
-			isSysex = true;
-			for (const b of dataIn) {
-				if ((b & 0x80) && (b < 0xF0)) {
-					isSysex = false;
+		let selectedDevice = null;
+
+		// Convert the device string into a Device instance.
+		if (deviceName) {
+			for (let dev in device) {
+				if (dev === deviceName) {
+					selectedDevice = device[dev];
 					break;
 				}
 			}
 		}
 
+		let isSysEx = midiData.isSysEx(dataIn);
+
 		let detail = {};
 
 		let blocks = [];
-		if (isSysex) {
+		if (isSysEx) {
+			const binMIDI = dataIn;
 			detail['Format'] = 'Raw MIDI SysEx';
 
-			let lcdMessages = {};
-			const sysExContent = midiData.blocksFromSysEx(dataIn, (index, msg) => {
-				lcdMessages[index] = msg;
-			});
-			detail['LCD Messages'] = lcdMessages;
+			// Try to guess the device model from the MIDI data.
+			if (!selectedDevice) {
+				const matchedDevices = this.identifyMIDITarget(binMIDI);
+				if (matchedDevices.length === 0) {
+					throw new Error('Unknown device model number in MIDI data.');
+				}
 
-			blocks = sysExContent.fwBlocks;
-			detail['SysEx target model'] = util.getModelName(sysExContent.targetModel);
+				if (matchedDevices.length > 1) {
+					throw new Error('MIDI device model number matched too many devices!  '
+						+ 'Please specify the device model to use.');
+				}
+				selectedDevice = matchedDevices[0];
+			}
+
+			let lcdMessages = {};
+
+			let sysExCount = -1;
+			const fwHandler = selectedDevice.getFirmwareDecoder();
+
+			midiData.processMIDI(binMIDI, event => {
+				sysExCount++;
+				const eventInfo = midiData.parseSysEx(event);
+
+				const fwBlock = fwHandler.addMIDIWrite(eventInfo);
+				if (!fwBlock) return; // ignored
+
+				if (fwBlock.message) {
+					lcdMessages[sysExCount] = fwBlock.message;
+				}
+			});
+
+			blocks = fwHandler.getBlocks();
+			detail['LCD Messages'] = lcdMessages;
+			detail['SysEx target model'] = util.getModelName(selectedDevice.modelId);
+
 		} else {
 			detail['Format'] = 'Raw binary';
 			const blockCount = dataIn.length >> 12; // ÷ 0x1000
@@ -78,30 +144,24 @@ class BehringerFirmware
 					}
 				}
 			}
+
+			// Try to see if we can identify the firmware.
+			if (!selectedDevice) {
+				for (let dev in device) {
+					if (device[dev].identifyFirmware(blocks)) {
+						selectedDevice = device[dev];
+						break;
+					}
+				}
+			}
 		}
 
 		return {
+			device: selectedDevice,
 			blocks: blocks,
 			detail: detail,
 		};
 	}
-
-	/// Look for some signatures to identify firmware versions.
-	static examine(blocks)
-	{
-		let fnExamine;
-		const debugSig = debug.extend('sigcheck');
-
-		for (let dev in device) {
-			debugSig(`Checking firmware for match against: ${dev}`);
-			if (device[dev].identifyFirmware(blocks)) {
-				return device[dev].examineFirmware(blocks);
-			}
-		}
-
-		return null;
-	}
-
 };
 
 module.exports = BehringerFirmware;

@@ -41,11 +41,22 @@ class Operations
 
 		const dataIn = fs.readFileSync(params['read']);
 
-		const decoded = Behringer.firmware.decode(dataIn);
+		let firmware;
+		try {
+			firmware = Behringer.firmware.decode(dataIn, params['model']);
+		} catch (e) {
+			if (debug.enabled) throw e; // don't catch if we're debugging
+			throw new OperationsError(`Error decoding firmware: ${e.message}`);
+		}
+
+		if (!firmware.device) {
+			throw new OperationsError('Unable to autodetect the device model this '
+				+ 'firmware is for.  Please specify --device-model.');
+		}
 
 		const dumpFilename = params['debug-dump'];
 		if (dumpFilename) {
-			const rawData = Behringer.util.blocksToImage(decoded.blocks, 0, 0xFFFF, false);
+			const rawData = Behringer.util.blocksToImage(firmware.blocks, 0, 0xFFFF, false);
 			fs.writeFileSync(dumpFilename, rawData);
 
 			output(
@@ -55,14 +66,14 @@ class Operations
 			return;
 		}
 
-		let info = Behringer.firmware.examine(decoded.blocks);
+		let info = firmware.device.examineFirmware(firmware.blocks);
 
 		if (!info) {
 			throw new OperationsError('Unrecognised firmware image');
 		}
 
-		for (let i of Object.keys(decoded.detail)) {
-			let value = decoded.detail[i];
+		for (let i of Object.keys(firmware.detail)) {
+			let value = firmware.detail[i];
 			if (typeof(value) == 'object') {
 				// Value is an object, so convert it into a string of key=value pairs.
 				const list = Object.keys(value).reduce((out, key) => {
@@ -96,9 +107,9 @@ class Operations
 			output(
 				output.padLeft(i - 1, 5, chalk.whiteBright),
 				output.padLeft('0x' + img.offset.toString(16), 10, chalk.magentaBright),
-				output.padLeft(img.capacity, 10, chalk.cyanBright),
+				output.padLeft(img.capacity || 'N/A', 10, chalk.cyanBright),
 				output.padLeft(img.data.length, 10, chalk.greenBright),
-				output.padLeft(Math.round((img.data.length / img.capacity) * 100), 3, chalk.blueBright),
+				output.padLeft(img.capacity ? Math.round((img.data.length / img.capacity) * 100) : '-', 3, chalk.blueBright),
 				chalk.yellowBright(img.title),
 			);
 		}
@@ -159,9 +170,14 @@ Operations.names = {
 		summary: 'Print details about a raw (fully decoded) firmware binary',
 		optionList: [
 			{
+				name: 'model',
+				type: String,
+				description: 'Device model, can be autodetected for some *.syx files',
+			},
+			{
 				name: 'read',
 				type: String,
-				description: '*.bin firmware file to read',
+				description: '*.bin or *.syx firmware file to read',
 			},
 			{
 				name: 'extract-index',

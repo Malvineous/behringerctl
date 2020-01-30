@@ -19,14 +19,89 @@
 
 const debug = require('debug')('behringerctl:device:deq2496v1');
 
+const midiFirmwareCoder = require('../algo/midiFirmwareCoder.js');
+const sevenEightCoder = require('../algo/sevenEightCoder.js');
 const util = require('../util.js');
 const xor = require('../algo/xor.js');
+
+// Key used to encrypt MIDI flash writes.
+const KEY_FW_BLOCK = "TZ'02";
 
 // This key is used to encrypt the firmware stored in flash.  The key is
 // obtained from the bootloader if it's available (e.g. from a full flash dump)
 // but since it's missing from the official firmware releases we fall back to
 // this key.
 const KEY_FW_APP = "- ORIGINAL BEHRINGER CODE - COPYRIGHT 2002 - BGER/TZ - \u0000";
+
+class DEQ2496v1FirmwareDecoder
+{
+	constructor()
+	{
+		this.subblocks = [];
+	}
+
+	/// Decode the content of a MIDI sysex firmware write message.
+	addMIDIWrite(eventInfo)
+	{
+		if (eventInfo.command != 0x34) {
+			debug(`Ignoring SysEx command ${eventInfo.command.toString(16)}`);
+			return null;
+		}
+
+		// Remove the 7/8 coding, restoring the full 8-bit bytes.
+		const data8bit = sevenEightCoder.decode(eventInfo.binData);
+
+		// Decrypt the data with a simple XOR cipher.
+		const data = xor(KEY_FW_BLOCK, data8bit);
+
+		const blockNumber = (data[0] << 8) | data[1];
+		const flashContent = data.slice(3);
+
+		if (blockNumber === 0xFF00) {
+			const trimmed = flashContent.slice(0, flashContent.indexOf(0));
+			const message = trimmed.toString('utf-8');
+			return {
+				message: message,
+			};
+		}
+
+		this.subblocks[blockNumber] = flashContent;
+
+		return {
+			blockNumber: blockNumber,
+			crc: data[2],
+			binData: flashContent,
+		};
+	}
+
+	getBlocks()
+	{
+		let blocks = [];
+		for (let i = 0; i < 0x80; i++) {
+			let nextBlock = [];
+			for (let s = 0; s < 16; s++) {
+				let subblock = this.subblocks[(i << 4) + s];
+				if (!subblock) {
+					nextBlock = null;
+					break;
+				}
+				nextBlock.push(subblock);
+			}
+			if (!nextBlock) continue;
+			blocks[i] = this.decodeBlock(
+				i,
+				Buffer.concat(nextBlock)
+			);
+		}
+		return blocks;
+	}
+
+	decodeBlock(blockNum, blockData)
+	{
+		// Another layer of encryption to remove.
+		return midiFirmwareCoder(blockNum, blockData);
+	}
+};
 
 class DEQ2496v1
 {
@@ -43,6 +118,11 @@ class DEQ2496v1
 		}
 
 		return false;
+	}
+
+	static getFirmwareDecoder()
+	{
+		return new DEQ2496v1FirmwareDecoder();
 	}
 
 	static examineFirmware(blocks) {
@@ -176,5 +256,7 @@ class DEQ2496v1
 		return info;
 	}
 };
+
+DEQ2496v1.modelId = util.models.deq2496;
 
 module.exports = DEQ2496v1;
