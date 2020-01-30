@@ -29,6 +29,20 @@ const KEY_FW_APP = "- ORIGINAL BEHRINGER CODE - COPYRIGHT 2004 - BGER/TZ - \u000
 
 class DEQ2496
 {
+	static identifyFirmware(blocks)
+	{
+		if (blocks[2]) {
+			const sigDEQ2496 = blocks[2].slice(0xC94, 0xC94 + 25).toString('utf8');
+			if (sigDEQ2496 === 'DEQ2496V2 BOOTLOADER V2.2') return true;
+
+		} else if (blocks[4]) {
+			const sigDEQ2496 = blocks[4].slice(0x01C, 0x01C + 4).toString('utf8');
+			if (sigDEQ2496 === 'COPY') return true;
+		}
+
+		return false;
+	}
+
 	static examineFirmware(blocks) {
 		let info = {
 			id: 'DEQ2496',

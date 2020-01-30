@@ -92,26 +92,14 @@ class BehringerFirmware
 		let fnExamine;
 		const debugSig = debug.extend('sigcheck');
 
-		if (blocks[2]) {
-			const sigDEQ2496 = blocks[2].slice(0xC94, 0xC94 + 25).toString('utf8');
-			if (sigDEQ2496 === 'DEQ2496V2 BOOTLOADER V2.2') {
-				fnExamine = device.DEQ2496.examineFirmware;
+		for (let dev in device) {
+			debugSig(`Checking firmware for match against: ${dev}`);
+			if (device[dev].identifyFirmware(blocks)) {
+				return device[dev].examineFirmware(blocks);
 			}
-			debugSig('DEQ2496 bootloader v2.2?', !!fnExamine);
-
-		} else if (blocks[4]) {
-			const sigDEQ2496 = blocks[4].slice(0x01C, 0x01C + 4).toString('utf8');
-			if (sigDEQ2496 === 'COPY') {
-				fnExamine = device.DEQ2496.examineFirmware;
-			}
-			debugSig('DEQ2496 application?', !!fnExamine);
 		}
 
-		if (!fnExamine) {
-			return null;
-		}
-
-		return fnExamine(blocks);
+		return null;
 	}
 
 };
