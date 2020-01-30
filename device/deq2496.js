@@ -19,6 +19,7 @@
 
 const debug = require('debug')('behringerctl:device:deq2496');
 
+const util = require('../util.js');
 const xor = require('../algo/xor.js');
 
 // This key is used to encrypt the firmware stored in flash.  The key is
@@ -50,34 +51,11 @@ class DEQ2496
 			images: [],
 		};
 
-		function blocksToImage(firstBlock, endBlock, keepMissing = false) {
-			let imageBlocks = [];
-			for (let i = firstBlock; i < endBlock; i++) {
-				if (!blocks[i]) {
-					// This block doesn't exist
-					if (keepMissing) {
-						// Simulate an unwritten flash block
-						imageBlocks.push(Buffer.alloc(0x1000, 0xFF));
-					} else {
-						if (imageBlocks.length != 0) {
-							// But we've put blocks in before, this is now a gap, so end
-							debug(`Blocks ${firstBlock} to ${i - 1} are good, block ${i} is `
-										+ `missing, ending early before reaching end block ${endBlock}`);
-							break;
-						}
-					}
-				} else {
-					imageBlocks.push(blocks[i]);
-				}
-			}
-			return Buffer.concat(imageBlocks);
-		}
-
 		// Add a special image for a full firmware dump
 		info.images.push({
 			offset: 0,
 			capacity: 0x80000,
-			data: blocksToImage(0, 0x80, true),
+			data: util.blocksToImage(blocks, 0, 0x80, true),
 			title: '(raw dump of flash chip content, see docs)',
 		});
 
@@ -85,7 +63,7 @@ class DEQ2496
 
 		// Combine the blocks into images
 		if (blocks[0] !== undefined) {
-			const imgContent = blocksToImage(0, 4);
+			const imgContent = util.blocksToImage(blocks, 0, 4);
 
 			info.images.push({
 				title: 'Bootloader',
@@ -129,7 +107,7 @@ class DEQ2496
 		}
 
 		if (blocks[4] !== undefined) {
-			const imgContent = blocksToImage(4, 0x5B);
+			const imgContent = util.blocksToImage(blocks, 4, 0x5B);
 
 			info.images.push({
 				title: 'Application (raw)',
@@ -151,7 +129,7 @@ class DEQ2496
 		}
 
 		if (blocks[0x5B] !== undefined) {
-			const imgContent = blocksToImage(0x5B, 0x74);
+			const imgContent = util.blocksToImage(blocks, 0x5B, 0x74);
 
 			info.images.push({
 				title: 'Unused',
@@ -162,7 +140,7 @@ class DEQ2496
 		}
 
 		if (blocks[0x74] !== undefined) {
-			const imgContent = blocksToImage(0x74, 0x7C);
+			const imgContent = util.blocksToImage(blocks, 0x74, 0x7C);
 
 			info.images.push({
 				title: 'Presets',
@@ -173,7 +151,7 @@ class DEQ2496
 		}
 
 		if (blocks[0x7C] !== undefined) {
-			const imgContent = blocksToImage(0x7C, 0x7E);
+			const imgContent = util.blocksToImage(blocks, 0x7C, 0x7E);
 
 			info.images.push({
 				title: 'Scratch space',
@@ -184,7 +162,7 @@ class DEQ2496
 		}
 
 		if (blocks[0x7E] !== undefined) {
-			const imgContent = blocksToImage(0x7E, 0x80);
+			const imgContent = util.blocksToImage(blocks, 0x7E, 0x80);
 
 			info.images.push({
 				title: 'Hardware data',

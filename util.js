@@ -17,6 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+const debug = require('debug')('behringerctl:util');
+
 const models = {
 	deq2496: 0x12,
 	ANY: 0x7F,
@@ -66,6 +68,30 @@ class BehringerUtil
 			}
 		}
 		return `${modelName}(${modelId})`;
+	}
+
+	static blocksToImage(blocks, firstBlock, endBlock, keepMissing = false)
+	{
+		let imageBlocks = [];
+		for (let i = firstBlock; i < endBlock; i++) {
+			if (!blocks[i]) {
+				// This block doesn't exist
+				if (keepMissing) {
+					// Simulate an unwritten flash block
+					imageBlocks.push(Buffer.alloc(0x1000, 0xFF));
+				} else {
+					if (imageBlocks.length != 0) {
+						// But we've put blocks in before, this is now a gap, so end
+						debug(`Blocks ${firstBlock} to ${i - 1} are good, block ${i} is `
+							+ `missing, ending early before reaching end block ${endBlock}`);
+						break;
+					}
+				}
+			} else {
+				imageBlocks.push(blocks[i]);
+			}
+		}
+		return Buffer.concat(imageBlocks);
 	}
 };
 
