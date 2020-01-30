@@ -22,56 +22,10 @@ const g_debug = debug;
 
 const sevenEightCoder = require('./algo/sevenEightCoder.js');
 const checksumTZ = require('./algo/checksumTZ.js');
+const util = require('./util.js');
 
 const DEVICE_ID_ANY = 0x7F;
 const SYSEX_COMPANY_ID_BEHRINGER = 0x002032;
-
-const models = {
-	deq2496: 0x12,
-	ANY: 0x7F,
-};
-
-const commands = {
-	identify: 0x01,
-	identifyResponse: 0x02,
-	writeSinglePreset: 0x20,
-	writeModulePresets: 0x21,
-	writeSingleValue: 0x22,
-	setMIDIChannel: 0x24,
-	writeFlash: 0x34,
-	writeFlashResponse: 0x35,
-	screenshotResponse: 0x36,
-	readSinglePreset: 0x60,
-	readModulePreset: 0x61,
-	getScreenshot: 0x76,
-	ANY: 0xFF,
-};
-
-function getCommandName(c)
-{
-	const commandId = parseInt(c);
-	let commandName = 'unknown';
-	for (const i of Object.keys(commands)) {
-		if (commands[i] === commandId) {
-			commandName = i;
-			break;
-		}
-	}
-	return `${commandName}(${commandId})`;
-}
-
-function getModelName(m)
-{
-	const modelId = parseInt(m);
-	let modelName = 'unknown';
-	for (const i of Object.keys(models)) {
-		if (models[i] === modelId) {
-			modelName = i;
-			break;
-		}
-	}
-	return `${modelName}(${modelId})`;
-}
 
 class Behringer
 {
@@ -84,7 +38,7 @@ class Behringer
 		this.midiOut = midiOutputStream;
 		this.listeners = {};
 		this.nextListenerId = 1;
-		this.modelId = models.ANY;
+		this.modelId = util.models.ANY;
 		this.deviceId = null;
 	}
 
@@ -528,6 +482,6 @@ debug('TODO: Preset data is cut off (preset title truncated at 10 chars)');
 	}
 };
 
-Behringer.models = models;
+Behringer.firmware = require('./firmware.js');
 
 module.exports = Behringer;
