@@ -162,6 +162,32 @@ class BehringerFirmware
 			detail: detail,
 		};
 	}
+
+	static encode(deviceModel, address, dataIn)
+	{
+		if (!device[deviceModel]) throw new Error('Unsupported device model');
+
+		const dev = device[deviceModel];
+
+		let midiBlocks = [];
+		dev.encodeFirmware(address, dataIn, binSysExContent => {
+			midiBlocks.push(Buffer.from([
+				0xF0,
+				0x00,
+				0x20,
+				0x32,
+				0x7F,
+				0x12, // model
+				0x34,
+			]));
+			midiBlocks.push(binSysExContent);
+			midiBlocks.push(Buffer.from([
+				0xF7,
+			]));
+		});
+
+		return Buffer.concat(midiBlocks);
+	}
 };
 
 module.exports = BehringerFirmware;

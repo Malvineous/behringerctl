@@ -177,6 +177,37 @@ class Operations
 		);
 	}
 
+	generate(params) {
+		if (!params['device-model']) {
+			throw new OperationsError('Missing --device-model.');
+		}
+		if (!params['read']) {
+			throw new OperationsError('Missing filename to --read.');
+		}
+		if (!params['write']) {
+			throw new OperationsError('Missing filename to --write.');
+		}
+		if (params['address'] === undefined) {
+			throw new OperationsError('Missing --address.');
+		}
+
+		const dataIn = fs.readFileSync(params['read']);
+
+		const dataOut = Behringer.firmware.encode(
+			params['device-model'],
+			parseInt(params['address']),
+			dataIn
+		);
+
+		const writeFilename = params['write'];
+		fs.writeFileSync(writeFilename, dataOut);
+
+		output(
+			'Wrote sysex firmware image to',
+			chalk.greenBright(writeFilename),
+		);
+	}
+
 	static async exec(createInstance, args) {
 		let cmdDefinitions = [
 			{ name: 'name', defaultOption: true },
@@ -254,6 +285,31 @@ Operations.names = {
 				name: 'xor',
 				type: String,
 				description: 'Optional XOR key to apply over content',
+			},
+		],
+	},
+	generate: {
+		summary: 'Create a *.syx firmware image',
+		optionList: [
+			{
+				name: 'device-model',
+				type: String,
+				description: 'Device model being flashed',
+			},
+			{
+				name: 'read',
+				type: String,
+				description: '*.bin firmware file to read',
+			},
+			{
+				name: 'address',
+				type: Number,
+				description: 'Address in flash memory chip to write to',
+			},
+			{
+				name: 'write',
+				type: String,
+				description: 'Filename to create (*.syx)',
 			},
 		],
 	},
