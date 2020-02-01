@@ -58,7 +58,7 @@ class Operations
 		}
 
 		try {
-			const def = Operations.names[cmd.name].optionList;
+			const def = Operations.names[cmd.name] && Operations.names[cmd.name].optionList;
 			if (def) {
 				const runOptions = commandLineArgs(def, { argv: cmd._unknown || [] });
 				await proc[cmd.name](runOptions);
