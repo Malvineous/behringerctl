@@ -20,6 +20,7 @@
 const chalk = require('chalk');
 const commandLineArgs = require('command-line-args');
 const debug = require('debug')('behringerctl:cli:devices');
+const fs = require('fs');
 
 const { OperationsError } = require('../error.js');
 const output = require('../output.js');
@@ -101,6 +102,38 @@ class Operations
 		await this.behringer.setLCDMessage(params['text']);
 	}
 
+	async sendsyx(params)
+	{
+		if (!params['read']) {
+			throw new OperationsError('Missing filename to --read.');
+		}
+		let dataIn = fs.readFileSync(params['read']);
+
+		let events = [];
+		while (dataIn.length > 2) {
+			if (!(dataIn[0] & 0x80)) {
+				throw new OperationsError('Invalid MIDI content');
+			}
+			const end = dataIn.slice(1).findIndex(v => v & 0x80);
+			const event = dataIn.slice(0, end + 2);
+			events.push(event);
+			dataIn = dataIn.slice(end + 2);
+		}
+
+		for (let i = 0; i < events.length; i++) {
+			output(
+				'Sending SysEx event',
+				chalk.yellowBright(i + 1),
+				'of',
+				chalk.yellowBright(events.length)
+			);
+			this.behringer.midiOut.write(events[i]);
+
+			// Put a delay in as writing too fast causes messages to be lost.
+			await new Promise((resolve, reject) => setTimeout(resolve, 250));
+		}
+	}
+
 	static async exec(createInstance, args) {
 		let cmdDefinitions = [
 			{ name: 'name', defaultOption: true },
@@ -160,6 +193,16 @@ Operations.names = {
 				name: 'text',
 				type: String,
 				description: 'Text to show',
+			},
+		],
+	},
+	sendsyx: {
+		summary: 'Read SysEx data from a file and transmit it out the selected MIDI interface',
+		optionList: [
+			{
+				name: 'read',
+				type: String,
+				description: '*.syx firmware file to read',
 			},
 		],
 	},
