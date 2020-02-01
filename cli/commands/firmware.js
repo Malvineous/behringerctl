@@ -1,5 +1,5 @@
 /**
- * Firmware-related CLI commands.
+ * Command line interface implementation for `firmware` function.
  *
  * Copyright (C) 2020 Adam Nielsen <malvineous@shikadi.net>
  *
@@ -19,7 +19,7 @@
 
 const chalk = require('chalk');
 const commandLineArgs = require('command-line-args');
-const debug = require('debug')('behringerctl:firmware');
+const debug = require('debug')('behringerctl:cli:firmware');
 const fs = require('fs');
 
 const Behringer = require('../../index.js');
