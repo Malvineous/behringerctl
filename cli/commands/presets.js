@@ -27,13 +27,16 @@ const output = require('../output.js');
 
 class Operations
 {
-	constructor() {
+	constructor()
+	{
 	}
 
-	async destructor() {
+	async destructor()
+	{
 	}
 
-	async list(params) {
+	async list(params)
+	{
 		output(
 			chalk.white.inverse('Index'.padEnd(5)),
 			chalk.white.inverse('Title'.padEnd(16)),
@@ -59,7 +62,8 @@ class Operations
 		}
 	}
 
-	async export(params) {
+	async export(params)
+	{
 		if (params['index'] === undefined) {
 			throw new OperationsError('Missing --index.');
 		}
@@ -95,7 +99,8 @@ class Operations
 		}
 	}
 
-	async import(params) {
+	async import(params)
+	{
 		if (params['index'] === undefined) {
 			throw new OperationsError('Missing --index.');
 		}
@@ -162,7 +167,8 @@ class Operations
 		}
 	}
 
-	static async exec(createInstance, args) {
+	static async exec(createInstance, args)
+	{
 		let cmdDefinitions = [
 			{ name: 'name', defaultOption: true },
 		];

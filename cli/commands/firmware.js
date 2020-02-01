@@ -32,13 +32,16 @@ const xor = require('../../algo/xor.js');
 
 class Operations
 {
-	constructor() {
+	constructor()
+	{
 	}
 
-	async destructor() {
+	async destructor()
+	{
 	}
 
-	examine(params) {
+	examine(params)
+	{
 		if (!params['read']) {
 			throw new OperationsError('Missing filename to --read.');
 		}
@@ -141,7 +144,8 @@ class Operations
 		}
 	}
 
-	syx2bin(params) {
+	syx2bin(params)
+	{
 		if (!params['read']) {
 			throw new OperationsError('Missing filename to --read.');
 		}
@@ -177,7 +181,8 @@ class Operations
 		);
 	}
 
-	generate(params) {
+	generate(params)
+	{
 		if (!params['device-model']) {
 			throw new OperationsError('Missing --device-model.');
 		}
@@ -208,7 +213,8 @@ class Operations
 		);
 	}
 
-	static async exec(createInstance, args) {
+	static async exec(createInstance, args)
+	{
 		let cmdDefinitions = [
 			{ name: 'name', defaultOption: true },
 		];

@@ -33,7 +33,8 @@ class Operations
 	async destructor() {
 	}
 
-	async list(params) {
+	async list(params)
+	{
 		let p = 0;
 		const throbber = '-/|\\';
 		function status() {
@@ -66,7 +67,8 @@ class Operations
 		}
 	}
 
-	async identify(params) {
+	async identify(params)
+	{
 		try {
 			const identity = await this.behringer.identify();
 			output(
@@ -77,7 +79,8 @@ class Operations
 		}
 	}
 
-	async config(params) {
+	async config(params)
+	{
 		if (params['midi-channel'] !== undefined) {
 			const channel = parseInt(params['midi-channel']) - 1;
 			if (channel < 0) {
@@ -94,7 +97,8 @@ class Operations
 		}
 	}
 
-	async message(params) {
+	async message(params)
+	{
 		//await this.behringer.readMemory();
 		if (params['text'] === undefined) {
 			throw new OperationsError('Must specify --text.');
@@ -134,7 +138,8 @@ class Operations
 		}
 	}
 
-	static async exec(createInstance, args) {
+	static async exec(createInstance, args)
+	{
 		let cmdDefinitions = [
 			{ name: 'name', defaultOption: true },
 		];

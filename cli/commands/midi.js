@@ -27,13 +27,16 @@ const output = require('../output.js');
 
 class Operations
 {
-	constructor() {
+	constructor()
+	{
 	}
 
-	async destructor() {
+	async destructor()
+	{
 	}
 
-	async list(params) {
+	async list(params)
+	{
 		let portList = [];
 
 		output(
@@ -83,7 +86,8 @@ class Operations
 		midiOutput.closePort();
 	}
 
-	static async exec(createInstance, args) {
+	static async exec(createInstance, args)
+	{
 		let cmdDefinitions = [
 			{ name: 'name', defaultOption: true },
 		];

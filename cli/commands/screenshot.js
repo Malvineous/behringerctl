@@ -26,13 +26,16 @@ const output = require('../output.js');
 
 class Operations
 {
-	constructor() {
+	constructor()
+	{
 	}
 
-	async destructor() {
+	async destructor()
+	{
 	}
 
-	async show(params) {
+	async show(params)
+	{
 		const ss = await this.behringer.getScreenshot();
 		if (params['ascii']) {
 			for (const row of ss.pixels) {
@@ -59,7 +62,8 @@ class Operations
 		}
 	}
 
-	static async exec(createInstance, args) {
+	static async exec(createInstance, args)
+	{
 		let cmdDefinitions = [
 			{ name: 'name', defaultOption: true },
 		];
