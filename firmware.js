@@ -50,7 +50,7 @@ class BehringerFirmware
 		for (let dev in device) {
 			if (sysExInfo.modelId === device[dev].modelId) {
 				debug(`Matched model ${dev}`);
-				matchedDevices.push(device[dev]);
+				matchedDevices.push(dev);
 			}
 		}
 
@@ -101,25 +101,28 @@ class BehringerFirmware
 
 				if (matchedDevices.length > 1) {
 					throw new Error('MIDI device model number matched too many devices!  '
-						+ 'Please specify the device model to use.');
+						+ 'Please specify the device model to use: ['
+						+ matchedDevices.join(', ') + ']'
+					);
 				}
-				selectedDevice = matchedDevices[0];
+				selectedDevice = device[matchedDevices[0]];
 			}
 
 			let lcdMessages = {};
 
-			let sysExCount = -1;
+			let dataBlockCount = 0;
 			const fwHandler = selectedDevice.getFirmwareDecoder();
 
 			midiData.processMIDI(binMIDI, event => {
-				sysExCount++;
 				const eventInfo = midiData.parseSysEx(event);
 
 				const fwBlock = fwHandler.addMIDIWrite(eventInfo);
 				if (!fwBlock) return; // ignored
 
 				if (fwBlock.message) {
-					lcdMessages[sysExCount] = fwBlock.message;
+					lcdMessages[dataBlockCount] = fwBlock.message;
+				} else {
+					dataBlockCount++;
 				}
 			});
 
