@@ -95,7 +95,8 @@ encryption are again used.  The process happens as follows:
 2. The 7-bit SysEx data is converted back to 8-bit data, by taking every eighth
    byte and using its bits as the MSB bits of the preceeding seven bytes.  Thus
    every eight bytes in the SysEx event produce seven usable bytes.  See
-   sevenEightCoder.js for example code.
+   [sevenEightCoder.js](https://github.com/Malvineous/behringerctl/blob/master/algo/sevenEightCoder.js)
+   for example code.
 
 3. An XOR cipher with the key `TZ'04` is applied to the data block to decode it.
 
@@ -103,26 +104,39 @@ encryption are again used.  The process happens as follows:
    followed by 256 bytes of data.
 
 5. The checksum byte is checked.  The Behringer docs call this a CRC but in
-   reality it's a homebrew checksum.  See checksumTZ.js for how to calculate it.
-   Contrary to the Behringer docs, the block number is not included in the
-   checksum and only the 256 data bytes are used.
+   reality it's a homebrew checksum.  See [checksumTZ.js](https://github.com/Malvineous/behringerctl/blob/master/algo/checksumTZ.js)
+   for how to calculate it.  Contrary to the Behringer docs, the block number
+   is not included in the checksum and only the 256 data bytes are used.
 
 6. The devices stores the 256 bytes into memory (not flash) and does not
    respond yet.
 
-7. After the 16th block has been received (4 kB) another XOR algorithm is
-   applied to the 4 kB block as a whole.  This algorithm is also currently
-   unknown, but it works at the 16-bit word level rather than at the byte level.
-   The key starts with `(blockNumber / 0x1000 + 2) ^ 0x4002` and after every
-   16-bit value, the key is shifted right by one bit.
+7. After the 16th block has been received (4 kB) another XOR cipher is applied
+   to the 4 kB block as a whole.  This algorithm uses the block's destination
+   flash address as the key, rotating the key and flipping some of its bits as
+   it goes.  Unlike the earlier ciphers this one works at the 16-bit level
+   rather than at the byte level.  See
+   [midiFirmwareCoder.js](https://github.com/Malvineous/behringerctl/blob/master/algo/midiFirmwareCoder.js)
+   for the implementation.
 
 8. The 4 kB block is then written to the flash chip and an acknowledgement is
-   sent back as a SysEx event.
+   sent back as a SysEx event, and a message is shown on the LCD.
+
+9. Note that the 4 kB block actually written to flash is still encrypted, as the
+   bootloader decrypts it when copying the data from flash into RAM at boot up.
 
 Writing to the special block number 0xFF00 causes the device to display the
 ASCII content on the LCD screen.  The stock firmware image contains extra blocks
 at the beginning and end of the firmware data to write messages indicating the
-process is beginning and has completed.
+process is beginning and has completed.  When flashing from within the
+application, the message gets overwritten during the flash process as each 4 kB
+block written to flash causes a message with the block number to be displayed
+on the LCD, overwriting the previous message.  When flashing from the bootloader
+however, the message remains visible as a graphical representation of the blocks
+being flashed is shown instead, which does not overwrite the last message.  Thus
+with some creativity, one could write progress messages throughout the firmware
+image such that a progress meter or "percentage flashed so far" information is
+shown throughout the procedure.
 
 ## Firmware dumps
 
@@ -151,7 +165,8 @@ Extracting image 1 will do the same, however a decryption will be performed to
 reveal the cleartext code.  This data is not written to the flash, but at power
 on, the bootloader performs this decryption when it copies the application code
 into RAM.  So the data written to the file in this case is what ends up in the
-device's memory, being executed by the processor.
+device's memory, being executed by the processor.  If you intend to disassemble
+the code, this is the image to use.
 
 Image -1 will provide a full dump the size of the flash chip, with any missing
 blocks filled with `0xFF` bytes, to simulate empty flash blocks.  This will
@@ -166,6 +181,69 @@ missing bootloader.
 
 If you have a full firmware dump of the flash chip taken with an EEPROM reader,
 then image -1 will just give you the same file back again unchanged.
+
+### Disassembly
+
+To disassemble the code, a Blackfin disassembler is needed.  The GNU GCC project
+used to have support for the Blackfin ISA, however this is now discontinued.
+An older version of GCC can still be used to disassemble the code however, and
+a Docker container exists to make this process very painless.
+
+Once you have Docker installed and the ability to run containers, load the
+`pf0camino/cross-bfin-elf` container:
+
+    docker run -p 1222:22 -v /home/user/blackfin-projects/:/projects/ --rm=true pf0camino/cross-bfin-elf
+
+Replace `/home/user/blackfin-projects/` with a path on the host machine where
+data will be shared with the Docker container.  The firmware files can be put
+in this folder on the host, where the disassember in the Docker container can
+read them.  The disassembly output inside Docker will also be written here,
+where it can be accessed on the host machine as well, even after the Docker
+container has been terminated.
+
+In another shell, connect to the container via SSH:
+
+    ssh user@localhost -p 1222
+    cd /projects
+
+The default password is `secret`.
+
+To disassemble a raw firmware dump, copy the file into the project folder and
+then inside Docker, use the `objdump` command:
+
+    bfin-elf-objdump -D -b binary -mbfin bootloader.bin > bootloader.disasm
+
+To compile your own code (untested) you should be able to do something like
+this:
+
+    bfin-elf-gcc -mcpu=bf531 -o example.elf example.cpp
+    bfin-elf-objcopy -I elf32-bfin -O binary example.elf example.bin
+
+You will need to encrypt the binary before flashing it to the chip.
+
+### Bootloader
+
+The bootloader isn't a raw image file but a kind of container holding multiple
+images (like a .zip file but without any compression).  The Blackfin boot
+sequence reads the headers in this data that dictate which blocks of data are
+written to which memory address at power up.
+
+The CLI can display these headers but not yet build a bootloader image from raw
+files:
+
+    behringerctl firmware examineBootloader --read bootloader.bin
+
+    Entrypoint: 0xffa08000
+    Index    Address       Size Flags
+        0 0xff800000          4 IGNORE flash=8-bit
+        1 0xffa08000        278
+        2 0xffa08000          2 INIT
+        3 0xff800000          4 IGNORE
+        4 0x00408000      11024
+        5 0x0040ab10      26492 ZEROFILL
+
+For more information on the addresses and flags, refer to the section on booting
+in the Blackfin architecture manual.
 
 ### LCD messages
 
@@ -186,4 +264,34 @@ message writing a 256-byte block of data.
 The official Behringer document is mostly correct, although it's for the
 DEQ2496v1 rather than v2.
 
-SysEx event 0x62 is undocumented, and its purpose is currently unknown.
+#### 0x26 Unknown
+
+The device sends a response to this message.  Its purpose is currently unknown.
+
+#### 0x27 Unknown
+
+The device sends a response to this message.  Its purpose is currently unknown.
+
+#### 0x28 Unknown
+
+The device sends a response to this message.  Its purpose is currently unknown.
+
+#### 0x2a Unknown
+
+The device sends a response to this message.  Its purpose is currently unknown.
+
+#### 0x36 Unknown
+
+The device sends a response to this message.  Its purpose is currently unknown.
+
+#### 0x35 writeFlashResponse
+
+No parameters.
+
+After the 16th 256-byte subblock has been written with `writeFlashBlock(0x34)`,
+the 4 kB block is flashed to the flash chip and `writeFlashResponse(0x35)` is
+returned on success.
+
+#### 0x62 Unknown
+
+This event's purpose is currently unknown.
