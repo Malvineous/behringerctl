@@ -130,13 +130,80 @@ class DEQ2496v2
 		return new DEQ2496v2FirmwareDecoder();
 	}
 
-	static encodeFirmware(address, binData, fnCallback)
+	static encodeFirmware(address, binData, messages, fnCallback)
 	{
 		// XOR encrypt just the application blocks
 		if (address == 0x4000) {
 			binData = xor(KEY_FW_APP, binData);
 		}
+		// XOR encrypt just the application blocks
+		// If flashing boot logo, check for .png
+		if (address == 0x7E000) {
+			try {
+				const png = PNG.sync.read(binData);
+				debug('Input is in .png format, address is boot logo, converting');
+				if ((png.width != 320) || (png.height != 80)) {
+					throw new Error('Input .png must be 320x80 pixels');
+				}
+				let outData = Buffer.alloc(png.height * png.width / 8);
+				for (let y = 0; y < png.height; y++) {
+					for (let x = 0; x < png.width; x++) {
+						let idx = (png.width * y + x) << 2;
+						// We're only looking at the red channel but since it's mono it
+						// probably doesn't matter.
+						if (png.data[idx] == 0xFF) {
+							outData[y * 40 + (x / 8) >>> 0] |= 0x80 >> (x % 8);
+						}
+					}
+				}
+				binData = outData;
+			} catch (e) {
+				debug('Not .png, continuing with original data:', e.message);
+			}
+		}
 
+		// Pad the data up to 4 kB with 0xFF bytes (unflashed data)
+		const padding = 4096 - (binData.length % 4096);
+		const binPad = Buffer.alloc(padding, 0xFF);
+		binData = Buffer.concat([binData, binPad]);
+
+		function packSubblock(binData, midiBlockNum)
+		{
+			let checksum = checksumTZ(binData);
+
+			let header = Buffer.from([
+				midiBlockNum >> 8,
+				midiBlockNum & 0xFF,
+				checksum,
+			]);
+
+			let binBlock = Buffer.concat([header, binData]);
+
+			// Encrypt the data with a simple XOR cipher.
+			binBlock = xor(KEY_FW_BLOCK, binBlock);
+
+			// Add the 7/8 coding, turning the 8-bit data into 7-bit clean.
+			binBlock = sevenEightCoder.encode(binBlock);
+
+			return Buffer.from(binBlock);
+		}
+
+		function insertMessage(strContent)
+		{
+			if (strContent) {
+				// We have a message for this spot
+				let msgblock = Buffer.concat([
+					Buffer.from(strContent),
+					Buffer.alloc(256 - strContent.length, 0x00),
+				]);
+				msgblock = packSubblock(msgblock, 0xFF00);
+				fnCallback(msgblock, 1);
+			}
+		}
+
+		let subblockCount = 0;
+
+		// blockCount is the number of 4 kB blocks in the input data.
 		const blockCount = binData.length >> 12; // ÷ 0x1000
 		for (let i = 0; i < blockCount; i++) {
 			const blockNum = (address >> 12) + i;
@@ -144,37 +211,29 @@ class DEQ2496v2
 			const offset = i << 12;
 			let blockContent = binData.slice(offset, offset + 0x1000);
 
-			// Only the application blocks are encrypted.
-			if ((blockNum >= 0x04) && (blockNum < 0x5B)) {
-				blockContent = midiFirmwareCoder(blockNum, blockContent);
-			}
+			// Apply the block-level encryption.
+			blockContent = midiFirmwareCoder(blockNum, blockContent);
 
 			// Split the 4 kB block up into 256 byte chunks.
 			for (let sub = 0; sub < 16; sub++) {
+
+				// If there should be a message before this block, generate it.
+				insertMessage(messages[subblockCount++]);
+
+				// Generate the actual block.
 				const offset = sub << 8;
 				let subblock = blockContent.slice(offset, offset + 256);
-
-				let checksum = checksumTZ(subblock);
-
 				let midiBlockNum = (blockNum << 4) | sub;
 
-				let header = Buffer.from([
-					midiBlockNum >> 8,
-					midiBlockNum & 0xFF,
-					checksum,
-				]);
+				subblock = packSubblock(subblock, midiBlockNum);
 
-				subblock = Buffer.concat([header, subblock]);
-
-				// Encrypt the data with a simple XOR cipher.
-				subblock = xor(KEY_FW_BLOCK, subblock);
-
-				// Add the 7/8 coding, turning the 8-bit data into 7-bit clean.
-				subblock = sevenEightCoder.encode(subblock);
-
-				fnCallback(Buffer.from(subblock));
+				fnCallback(subblock, 0);
 			}
 		}
+
+		// If there's a final message at one block larger than the number we have,
+		// insert it too.
+		insertMessage(messages[subblockCount]);
 	}
 
 	static examineFirmware(blocks)

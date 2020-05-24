@@ -163,30 +163,37 @@ class BehringerFirmware
 		};
 	}
 
-	static encode(deviceModel, address, dataIn)
+	static encode(deviceModel, address, dataIn, messages = {})
 	{
 		if (!device[deviceModel]) throw new Error('Unsupported device model');
 
 		const dev = device[deviceModel];
 
+		let blockCount = 0, messageCount = 0;
 		let midiBlocks = [];
-		dev.encodeFirmware(address, dataIn, binSysExContent => {
+		dev.encodeFirmware(address, dataIn, messages, (binSysExContent, blockType) => {
 			midiBlocks.push(Buffer.from([
 				0xF0,
 				0x00,
 				0x20,
 				0x32,
-				0x7F,
-				0x12, // model
-				0x34,
+				0x7F, // any device ID
+				dev.modelId,
+				0x34, // write fw block
 			]));
 			midiBlocks.push(binSysExContent);
 			midiBlocks.push(Buffer.from([
 				0xF7,
 			]));
+			if (blockType === 0) blockCount++;
+			else if (blockType === 1) messageCount++;
 		});
 
-		return Buffer.concat(midiBlocks);
+		return {
+			blockCount: blockCount,
+			messageCount: messageCount,
+			binFirmware: Buffer.concat(midiBlocks),
+		};
 	}
 };
 

@@ -291,8 +291,8 @@ class Operations
 
 	generate(params)
 	{
-		if (!params['device-model']) {
-			throw new OperationsError('Missing --device-model.');
+		if (!params['model']) {
+			throw new OperationsError('Missing --model.');
 		}
 		if (!params['read']) {
 			throw new OperationsError('Missing filename to --read.');
@@ -304,19 +304,41 @@ class Operations
 			throw new OperationsError('Missing --address.');
 		}
 
+		let messages = {};
+		if (params['messages']) {
+			const pairs = params['messages'].split(',');
+			for (let p of pairs) {
+				const [strIndex, msg] = p.split('=');
+				const index = parseInt(strIndex);
+				messages[index] = msg;
+				output(
+					'At block',
+					chalk.yellowBright(index),
+					'writing message:',
+					chalk.bgGreen.black(msg)
+				);
+			}
+		}
+		debug('Messages:', messages);
+
 		const dataIn = fs.readFileSync(params['read']);
 
-		const dataOut = Behringer.firmware.encode(
-			params['device-model'],
+		const fwOut = Behringer.firmware.encode(
+			params['model'],
 			parseInt(params['address']),
-			dataIn
+			dataIn,
+			messages,
 		);
 
 		const writeFilename = params['write'];
-		fs.writeFileSync(writeFilename, dataOut);
+		fs.writeFileSync(writeFilename, fwOut.binFirmware);
 
 		output(
-			'Wrote sysex firmware image to',
+			'Wrote sysex firmware image with',
+			chalk.greenBright(fwOut.blockCount),
+			'data blocks +',
+			chalk.greenBright(fwOut.messageCount),
+			'message blocks to',
 			chalk.greenBright(writeFilename),
 		);
 	}
@@ -431,7 +453,7 @@ Operations.names = {
 		summary: 'Create a *.syx firmware image',
 		optionList: [
 			{
-				name: 'device-model',
+				name: 'model',
 				type: String,
 				description: 'Device model being flashed',
 			},
@@ -449,6 +471,11 @@ Operations.names = {
 				name: 'write',
 				type: String,
 				description: 'Filename to create (*.syx)',
+			},
+			{
+				name: 'messages',
+				type: String,
+				description: 'Messages to display of the form "0=Starting flash,10=Up to block 10"',
 			},
 		],
 	},
