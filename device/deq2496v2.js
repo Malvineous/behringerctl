@@ -18,6 +18,7 @@
  */
 
 const debug = require('debug')('behringerctl:device:deq2496v2');
+const PNG = require('pngjs').PNG;
 
 const checksumTZ = require('../algo/checksumTZ.js');
 const midiFirmwareCoder = require('../algo/midiFirmwareCoder.js');
@@ -362,6 +363,32 @@ class DEQ2496v2
 				data: imgContent,
 				offset: 0x7E000,
 				capacity: 0x80000 - 0x7E000,
+			});
+
+			let pngBoot = new PNG({
+				width: 320,
+				height: 80,
+				inputColorType: 0, // greyscale
+				colorType: 0, // greyscale
+			});
+
+			for (let p = 0; p < imgContent.length; p++) {
+				const pixelByte = imgContent[p];
+				for (let bit = 0; bit < 8; bit++) {
+					const pixel = (pixelByte & (0x80 >> bit)) ? 0xFF : 0x00;
+					const y = (p / 40) >>> 0, x = (p % 40) * 8 + bit;
+					let offset = 4 * (320 * y + x);
+					pngBoot.data[offset] = pixel;
+					pngBoot.data[offset+1] = pixel;
+					pngBoot.data[offset+2] = pixel;
+					pngBoot.data[offset+3] = 0xFF;
+				}
+			}
+
+			info.images.push({
+				title: 'Boot screen (converted to .png)',
+				data: PNG.sync.write(pngBoot),
+				offset: 0x7E000,
 			});
 		}
 

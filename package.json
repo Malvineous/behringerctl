@@ -21,7 +21,8 @@
     "debug": "^4.1.1",
     "glob": "^7.1.6",
     "midi": "^1.0.0",
-    "path": "^0.12.7"
+    "path": "^0.12.7",
+    "pngjs": "^3.4.0"
   },
   "devDependencies": {
     "mocha": "^7.0.0"
