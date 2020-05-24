@@ -144,6 +144,114 @@ class Operations
 		}
 	}
 
+	examineBootloader(params)
+	{
+		if (!params['read']) {
+			throw new OperationsError('Missing filename to --read.');
+		}
+
+		let dataIn = fs.readFileSync(params['read']);
+
+		let blocks = [];
+		while (dataIn.length > 10) {
+			let block = {
+				address:
+					(
+						(dataIn[0] << 0) |
+						(dataIn[1] << 8) |
+						(dataIn[2] << 16) |
+						(dataIn[3] << 24)
+					) >>> 0, // make unsigned
+				length:
+					(
+						(dataIn[4] << 0) |
+						(dataIn[5] << 8) |
+						(dataIn[6] << 16) |
+						(dataIn[7] << 24)
+					) >>> 0, // make unsigned
+				flags:
+					(dataIn[8] << 0) |
+					(dataIn[9] << 8),
+				flagText: [],
+			};
+			block.content = dataIn.slice(10, 10 + block.length);
+			dataIn = dataIn.slice(10 + block.length);
+
+			// Taken from description above FGRAB_HEADER in ADSP-BF533-ROM-V03.asm
+			// (BF533 internal boot ROM source code) available at:
+			// https://sourceforge.net/projects/adiopshw/files/BootROM%20Source/
+			if (block.flags & (1 << 0)) block.flagText.push('ZEROFILL');
+			if (block.flags & (1 << 1)) block.flagText.push('RESVECT');
+			if (block.flags & (1 << 2)) block.flagText.push('(reserved2)');
+			if (block.flags & (1 << 3)) block.flagText.push('INIT');
+			if (block.flags & (1 << 4)) block.flagText.push('IGNORE');
+			if (block.flags & (0xF << 5)) block.flagText.push('PFLAG=' + ((block.flags >> 5) & 0xF));
+			if (block.flags & (1 << 9)) block.flagText.push('(reserved9)');
+			if (block.flags & (1 << 10)) block.flagText.push('(reserved10)');
+			if (block.flags & (1 << 11)) block.flagText.push('(reserved11)');
+			if (block.flags & (1 << 12)) block.flagText.push('(reserved12)');
+			if (block.flags & (1 << 13)) block.flagText.push('(reserved13)');
+			if (block.flags & (1 << 14)) block.flagText.push('(reserved14)');
+			if (block.flags & (1 << 15)) block.flagText.push('FINAL');
+
+			if (block.length > (1 << 21)) { // 2MB
+				throw new OperationsError(`Corrupted bootloader - block length (${block.length}) is larger than total memory size.`);
+			}
+			blocks.push(block);
+		}
+		if (dataIn.length > 0) {
+			blocks.push({
+				address: 'Leftover',
+				content: dataIn,
+			});
+		}
+
+		const flashFlags = blocks[0].address & 0xFF;
+		const flashWidth = (flashFlags & 0xF0 === 0x60) ? '16' : '8';
+		blocks[0].flagText.push(`flash=${flashWidth}-bit`);
+
+		// From GRAB_HEADER in internal boot rom source, see above.
+		output('Entrypoint:', chalk.magentaBright('0xffa08000'));
+
+		output(
+			chalk.white.inverse('Index'.padStart(5)),
+			chalk.white.inverse('Address'.padStart(10)),
+			chalk.white.inverse('Size'.padStart(10)),
+			chalk.white.inverse('Flags'.padEnd(24)),
+		);
+		for (let i in blocks) {
+			const img = blocks[i];
+			output(
+				output.padLeft(i, 5, chalk.whiteBright),
+				output.padLeft('0x' + img.address.toString(16).padStart(8, '0'), 10, chalk.magentaBright),
+				output.padLeft(img.length, 10, chalk.greenBright),
+				output.pad(img.flagText.join(' '), 17, chalk.yellowBright),
+			);
+		}
+
+		if (params['extract-index'] !== undefined) {
+			if (!params['write']) {
+				throw new OperationsError('Missing filename to --write.');
+			}
+			const index = parseInt(params['extract-index']);
+
+			const img = info.images[index + 1];
+			if (!img) {
+				throw new OperationsError('Invalid --extract-index.');
+			}
+
+			const writeFilename = params['write'];
+			fs.writeFileSync(writeFilename, img.data);
+
+			output(
+				'Wrote image',
+				chalk.yellowBright(index),
+				'to',
+				chalk.greenBright(writeFilename),
+			);
+		}
+	}
+
 	syx2bin(params)
 	{
 		if (!params['read']) {
@@ -270,6 +378,31 @@ Operations.names = {
 				name: 'debug-dump',
 				type: String,
 				description: 'Dump SysEx decoded data for identifying new firmware images',
+			},
+		],
+	},
+	examineBootloader: {
+		summary: 'Print details about a raw (fully decoded) bootloader binary',
+		optionList: [
+			{
+				name: 'model',
+				type: String,
+				description: 'Device model',
+			},
+			{
+				name: 'read',
+				type: String,
+				description: '*.bin firmware file to read',
+			},
+			{
+				name: 'extract-index',
+				type: Number,
+				description: 'Optional image index to extract from firmware blob',
+			},
+			{
+				name: 'write',
+				type: String,
+				description: 'Filename to save --extract-index to',
 			},
 		],
 	},
