@@ -295,3 +295,99 @@ returned on success.
 #### 0x62 Unknown
 
 This event's purpose is currently unknown.
+
+## Reflashing safely
+
+Flash addresses 0 to 0x4000 are used to store the bootloader.  As long as you
+never write to these addresses, the chances of bricking the device are tiny.
+Providing the bootloader remains intact, you will always be able to use it to
+reflash the rest of the chip by following the official firmware flashing
+procedure, which steps you through accessing the bootloader and performing the
+flash.  This will allow you to return the device to a working state.
+
+Things like the boot logo (and the bootloader itself) are not part of the
+official firmware releases, so if you change these you will need to keep a copy
+of the original in order to restore it should you wish.
+
+If you flash something to the device that does not work, then providing the
+bootloader is left intact, you can always boot into it and reflash again.  The
+device will never be bricked permanently so long as the bootloader is left
+alone.
+
+If you do accidentally overwrite the bootloader, then the only way to unbrick
+the device is to open it up, remove the SST39-series flash chip, and use an
+external EEPROM programmer to reflash it.  These are available cheaply online.
+
+However you will need to reflash the corrupted bootloader at address 0, which
+means you will need a copy of the bootloader ROM.  This is not part of any
+official firmware release, because the official images do not touch the
+bootloader.  This is to ensure there is no way to brick the device from a failed
+flash, as a working bootloader means the unit can always be recovered without
+opening it.
+
+Other options are available if you have the bootloader data but cannot get an
+EEPROM programmer.  Programs like [Flashrom](https://www.flashrom.org/Flashrom)
+support many unconventional devices, and you can always hot swap the flash chip
+with another DEQ2496 if you can get access to a second one.  This is done by
+putting the good flash chip gently into the socket of the failed unit, powering
+it up into the bootloader, then carefully with the power on, removing the good
+chip and putting the original failed chip back in again.  Then the bootloader
+can be reflashed, returning the device to working order.
+
+## Examples
+
+### Changing the boot logo
+
+This relatively harmless change only reflashes the blocks used for the boot
+splash screen.  If corrupt data is flashed it will not cause problems, just
+display a corrupted splash screen during boot.
+
+First, extract the existing boot logo from the firmware image.  You will need a
+full dump of the flash chip for this, as the boot logo is not included in any
+of the official firmware images.  This is also a good idea anyway, as having a
+full firmware dump (and an EEPROM programmer to write it) means you can unbrick
+the device if any mistakes are made during the reflashing procedure.
+
+    behringerctl firmware examine \
+        --model DEQ2496v2 \
+        --read firmware.deq2496.v2.5.rawdump.bin \
+        --extract-index 7 \
+        --write bootlogo.png
+
+Modify `bootlogo.png` with an editor like GIMP, ensuring it remains in the same
+subformat (colour depth).
+
+Next, convert the modified image into a firmware package.  Here we are writing
+the logo to the address shown by `firmware examine`, so that we won't be
+touching any other part of the firmware.  This does not flash anything to the
+device yet, it just produces a `.syx` file containing the instructions for
+updating the flash chip.
+
+    behringerctl firmware generate \
+        --model DEQ2496v2 \
+        --read bootlogo.png \
+        --address 0x7E000 \
+        --messages "0=CHANGING BOOT LOGO, 8=ALMOST THERE..., 16=NEW BOOT LOGO FLASHED" \
+        --write pngboot.syx
+
+Next to be safe we should dump this new firmware image to ensure that it looks
+as expected.
+
+    behringerctl firmware examine \
+        --model DEQ2496v2 \
+        --read pngboot.syx \
+        --extract-index 1 \
+        --write pngboot-extracted.png
+
+Ensure the address matches the address the original boot logo was extracted
+from, and that the resulting `pngboot-extracted.png` contains the expected new
+picture to be flashed.
+
+If everything looks good, the file can be immediately flashed with your
+preferred SysEx tool as per the official flashing procedure, or you can continue
+to use the CLI:
+
+    behringerctl devices sendsyx --read pngboot.syx
+
+There is no need to indicate the model number as this is encoded into the `.syx`
+file.
