@@ -100,13 +100,9 @@ class DEQ2496v2FirmwareDecoder
 
 	decodeBlock(blockNum, blockData)
 	{
-		if ((blockNum >= 4) && (blockNum < 0x5B)) {
-			// Another layer of encryption to remove.
-			return midiFirmwareCoder(blockNum, blockData);
-		}
-
-		// Other blocks aren't encrypted, only the application is.
-		return blockData;
+		// Another layer of encryption to remove.  This seems to apply to all
+		// blocks, but so far only app and bootlogo have been confirmed.
+		return midiFirmwareCoder(blockNum, blockData);
 	}
 };
 
