@@ -21,6 +21,7 @@ const debug = require('debug')('behringerctl:util');
 
 const models = {
 	deq2496: 0x12,
+	fbq1000: 0x1f,
 	ANY: 0x7F,
 };
 
