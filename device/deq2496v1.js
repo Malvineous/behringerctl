@@ -125,6 +125,54 @@ class DEQ2496v1
 		return new DEQ2496v1FirmwareDecoder();
 	}
 
+	static encodeFirmware(address, binData, fnCallback)
+	{
+		// XOR encrypt just the application blocks
+		if (address == 0x4000) {
+			debug('Address 0x4000 means app, encrypting with app key');
+			binData = xor(KEY_FW_APP, binData);
+		}
+
+		const blockCount = binData.length >> 12; // ÷ 0x1000
+		for (let i = 0; i < blockCount; i++) {
+			const blockNum = (address >> 12) + i;
+
+			const offset = i << 12;
+			let blockContent = binData.slice(offset, offset + 0x1000);
+
+			// Only the application blocks are encrypted.
+			if ((blockNum >= 0x04) && (blockNum < 0x5B)) {
+				blockContent = midiFirmwareCoder(blockNum, blockContent);
+			}
+
+			// Split the 4 kB block up into 256 byte chunks.
+			for (let sub = 0; sub < 16; sub++) {
+				const offset = sub << 8;
+				let subblock = blockContent.slice(offset, offset + 256);
+
+				let checksum = checksumTZ(subblock);
+
+				let midiBlockNum = (blockNum << 4) | sub;
+
+				let header = Buffer.from([
+					midiBlockNum >> 8,
+					midiBlockNum & 0xFF,
+					checksum,
+				]);
+
+				subblock = Buffer.concat([header, subblock]);
+
+				// Encrypt the data with a simple XOR cipher.
+				subblock = xor(KEY_FW_BLOCK, subblock);
+
+				// Add the 7/8 coding, turning the 8-bit data into 7-bit clean.
+				subblock = sevenEightCoder.encode(subblock);
+
+				fnCallback(Buffer.from(subblock));
+			}
+		}
+	}
+
 	static examineFirmware(blocks) {
 		let info = {
 			id: 'DEQ2496v1',
